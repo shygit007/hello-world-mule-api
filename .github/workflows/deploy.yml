@@ -1,13 +1,12 @@
-name: Publish to Exchange and Deploy to CloudHub 2.0
+name: Publish to Exchange (only)
 
 on:
   push:
     branches: [ master ]
-  pull_request:
-    branches: [ master ]
+  workflow_dispatch:
 
 jobs:
-  ci:
+  publish:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -17,7 +16,7 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Build
+      - name: Build package
         run: mvn -B -U -e clean package -DskipTests
 
       - name: Show where publish will go
@@ -25,57 +24,9 @@ jobs:
           echo "Repo: $(mvn -q help:evaluate -Dexpression=project.distributionManagement.repository.url -DforceStdout)"
           echo "GAV:  $(mvn -q help:evaluate -Dexpression=project.groupId -DforceStdout):$(mvn -q help:evaluate -Dexpression=project.artifactId -DforceStdout):$(mvn -q help:evaluate -Dexpression=project.version -DforceStdout)"
 
-      # --- Publish to Exchange (org-scoped maven) ---
       - name: Publish to Anypoint Exchange
         run: |
           mvn -B -U -e org.mule.tools.maven:exchange-mule-maven-plugin:0.0.21:exchange-deploy \
             -Danypoint.username="${{ secrets.ANYPOINT_USERNAME }}" \
             -Danypoint.password="${{ secrets.ANYPOINT_PASSWORD }}" \
             -Danypoint.orgId="${{ secrets.ANYPOINT_ORG_ID }}"
-
-      # --- Wait until the asset is actually visible in Exchange (handles indexing lag) ---
-      - name: Wait for Exchange indexing (SNAPSHOT)
-        run: |
-          set -e
-          GROUP_ID=$(mvn -q help:evaluate -Dexpression=project.groupId -DforceStdout)
-          ARTIFACT_ID=$(mvn -q help:evaluate -Dexpression=project.artifactId -DforceStdout)
-          VERSION=$(mvn -q help:evaluate -Dexpression=project.version -DforceStdout)
-          REPO_URL=$(mvn -q help:evaluate -Dexpression=project.distributionManagement.repository.url -DforceStdout)
-          GPATH=${GROUP_ID//./\/}
-          META_URL="$REPO_URL/$GPATH/$ARTIFACT_ID/$VERSION/maven-metadata.xml"
-
-          echo "Polling Exchange for $GROUP_ID:$ARTIFACT_ID:$VERSION"
-          for i in {1..24}; do
-            CODE=$(curl -s -o /dev/null -w "%{http_code}" \
-                    -u "${{ secrets.ANYPOINT_USERNAME }}:${{ secrets.ANYPOINT_PASSWORD }}" \
-                    "$META_URL" || true)
-            if [ "$CODE" = "200" ]; then
-              echo "Exchange metadata found."
-              break
-            fi
-            echo "Waiting... ($i/24)"; sleep 5
-          done
-          if [ "$CODE" != "200" ]; then
-            echo "Asset not visible in Exchange within timeout." >&2
-            exit 1
-          fi
-          {
-            echo "GROUP_ID=$GROUP_ID"
-            echo "ARTIFACT_ID=$ARTIFACT_ID"
-            echo "VERSION=$VERSION"
-          } >> $GITHUB_ENV
-
-      # --- Deploy from Exchange (same coordinates) ---
-      - name: Deploy to CloudHub 2.0 from Exchange
-        run: |
-          mvn -B -U -e mule:deploy \
-            -DdeploymentType=EXCHANGE \
-            -DassetGroupId="${{ env.GROUP_ID }}" \
-            -DassetArtifactId="${{ env.ARTIFACT_ID }}" \
-            -DassetVersion="${{ env.VERSION }}" \
-            -DassetPackaging="mule-application" \
-            -Danypoint.username="${{ secrets.ANYPOINT_USERNAME }}" \
-            -Danypoint.password="${{ secrets.ANYPOINT_PASSWORD }}" \
-            -Danypoint.environment="${{ secrets.ANYPOINT_ENV }}" \
-            -Danypoint.target="${{ secrets.ANYPOINT_TARGET }}" \
-            -Danypoint.applicationName="hello-world-api-${{ github.run_number }}"
