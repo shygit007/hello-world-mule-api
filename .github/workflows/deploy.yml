@@ -1,62 +1,41 @@
-name: Publish to Exchange and Deploy to CloudHub 2.0
+name: Publish to Exchange and Deploy (CH2)
 
 on:
-  push:
-    branches: [ master ]
-  pull_request:
-    branches: [ master ]
+  push: { branches: [ master ] }
 
 jobs:
-  build-publish-deploy:
+  ci:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { java-version: '17', distribution: 'temurin' }
 
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-
-      - name: Cache Maven dependencies
-        uses: actions/cache@v3
-        with:
-          path: ~/.m2
-          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
-          restore-keys: |
-            ${{ runner.os }}-m2
-
-      - name: Build package
+      - name: Build
         run: mvn -B -U -e clean package -DskipTests
-        env:
-          MAVEN_OPTS: "-Xmx1024m"
 
-      # 1) Publish to Exchange (uses plugin; no settings.xml)
-      - name: Publish to Anypoint Exchange
+      - name: Show where publish will go
+        run: |
+          echo "Repo: $(mvn -q help:evaluate -Dexpression=project.distributionManagement.repository.url -DforceStdout)"
+          echo "GAV:  $(mvn -q help:evaluate -Dexpression=project.groupId -DforceStdout):$(mvn -q help:evaluate -Dexpression=project.artifactId -DforceStdout):$(mvn -q help:evaluate -Dexpression=project.version -DforceStdout)"
+
+      - name: Publish to Exchange (org-scoped)
         run: |
           mvn -B -U -e org.mule.tools.maven:exchange-mule-maven-plugin:0.0.21:exchange-deploy \
             -Danypoint.username="${{ secrets.ANYPOINT_USERNAME }}" \
             -Danypoint.password="${{ secrets.ANYPOINT_PASSWORD }}" \
             -Danypoint.orgId="${{ secrets.ANYPOINT_ORG_ID }}"
-        env:
-          MAVEN_OPTS: "-Xmx1024m"
-          
 
-      # 2) Deploy from Exchange to CloudHub 2.0 (explicit coordinates)
-      - name: Deploy to CloudHub 2.0 (from Exchange)
+      - name: Deploy to CloudHub 2.0 from Exchange
         run: |
           mvn -B -U -e mule:deploy \
             -DdeploymentType=EXCHANGE \
-            -DassetGroupId=com.mycompany \
-            -DassetArtifactId=hello-world-api \
-            -DassetVersion=1.0.0-SNAPSHOT \
-            -DassetPackaging=mule-application \
+            -DassetGroupId="com.mycompany" \
+            -DassetArtifactId="hello-world-api" \
+            -DassetVersion="1.0.0-SNAPSHOT" \
+            -DassetPackaging="mule-application" \
             -Danypoint.username="${{ secrets.ANYPOINT_USERNAME }}" \
             -Danypoint.password="${{ secrets.ANYPOINT_PASSWORD }}" \
-            -Danypoint.applicationName="hello-world-api-${{ github.run_number }}" \
             -Danypoint.environment="${{ secrets.ANYPOINT_ENV }}" \
-            -Danypoint.target="${{ secrets.ANYPOINT_TARGET }}"
-        env:
-          MAVEN_OPTS: "-Xmx1024m"
+            -Danypoint.target="${{ secrets.ANYPOINT_TARGET }}" \
+            -Danypoint.applicationName="hello-world-api-${{ github.run_number }}"
