@@ -42,6 +42,7 @@ jobs:
             -Danypoint.orgId="${{ secrets.ANYPOINT_ORG_ID }}"
         env:
           MAVEN_OPTS: "-Xmx1024m"
+          
 
       # 2) Deploy from Exchange to CloudHub 2.0 (explicit coordinates)
       - name: Deploy to CloudHub 2.0 (from Exchange)
