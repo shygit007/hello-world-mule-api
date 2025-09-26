@@ -28,12 +28,12 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-m2
 
-      - name: Build (no Exchange calls)
+      - name: Build package
         run: mvn -B -U -e clean package -DskipTests
         env:
           MAVEN_OPTS: "-Xmx1024m"
 
-      # Publish to Exchange via plugin (no settings.xml)
+      # 1) Publish to Exchange (uses plugin; no settings.xml)
       - name: Publish to Anypoint Exchange
         run: |
           mvn -B -U -e org.mule.tools.maven:exchange-mule-maven-plugin:0.0.21:exchange-deploy \
@@ -43,9 +43,15 @@ jobs:
         env:
           MAVEN_OPTS: "-Xmx1024m"
 
-      - name: Deploy to CloudHub 2.0
+      # 2) Deploy from Exchange to CloudHub 2.0 (explicit coordinates)
+      - name: Deploy to CloudHub 2.0 (from Exchange)
         run: |
           mvn -B -U -e mule:deploy \
+            -DdeploymentType=EXCHANGE \
+            -DassetGroupId=com.mycompany \
+            -DassetArtifactId=hello-world-api \
+            -DassetVersion=1.0.0-SNAPSHOT \
+            -DassetPackaging=mule-application \
             -Danypoint.username="${{ secrets.ANYPOINT_USERNAME }}" \
             -Danypoint.password="${{ secrets.ANYPOINT_PASSWORD }}" \
             -Danypoint.applicationName="hello-world-api-${{ github.run_number }}" \
