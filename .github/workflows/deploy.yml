@@ -1,4 +1,4 @@
-name: Deploy to CloudHub 2.0
+name: Publish to Exchange and Deploy to CloudHub 2.0
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
     branches: [ master ]
 
 jobs:
-  deploy:
+  build-publish-deploy:
     runs-on: ubuntu-latest
     
     steps:
@@ -28,12 +28,23 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-m2
         
-    - name: Build with Maven
-      run: mvn clean compile
-      
+    - name: Build Application
+      run: mvn clean package -DskipTests
+      env:
+        MAVEN_OPTS: "-Xmx1024m"
+        
+    - name: Publish to Exchange
+      run: |
+        mvn clean deploy \
+          -Danypoint.username="${{ secrets.ANYPOINT_USERNAME }}" \
+          -Danypoint.password="${{ secrets.ANYPOINT_PASSWORD }}" \
+          -DskipMuleDeploy
+      env:
+        MAVEN_OPTS: "-Xmx1024m"
+        
     - name: Deploy to CloudHub 2.0
       run: |
-        mvn clean deploy -DmuleDeploy \
+        mvn mule:deploy \
           -Danypoint.username="${{ secrets.ANYPOINT_USERNAME }}" \
           -Danypoint.password="${{ secrets.ANYPOINT_PASSWORD }}" \
           -Danypoint.applicationName="hello-world-api-${{ github.run_number }}" \
