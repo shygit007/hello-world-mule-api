@@ -31,7 +31,7 @@ jobs:
       
     - name: Deploy to CloudHub
       run: |
-        mvn mule:deploy \
+        mvn clean deploy -DmuleDeploy \
           -Danypoint.username="${{ secrets.ANYPOINT_USERNAME }}" \
           -Danypoint.password="${{ secrets.ANYPOINT_PASSWORD }}" \
           -Danypoint.applicationName="hello-world-api-${{ github.run_number }}" \
