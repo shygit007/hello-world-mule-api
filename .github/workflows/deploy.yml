@@ -9,46 +9,47 @@ on:
 jobs:
   build-publish-deploy:
     runs-on: ubuntu-latest
-    
+
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Set up JDK 17
-      uses: actions/setup-java@v4
-      with:
-        java-version: '17'
-        distribution: 'temurin'
-        
-    - name: Cache Maven dependencies
-      uses: actions/cache@v3
-      with:
-        path: ~/.m2
-        key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
-        restore-keys: |
-          ${{ runner.os }}-m2
-        
-    - name: Build Application
-      run: mvn clean package -DskipTests
-      env:
-        MAVEN_OPTS: "-Xmx1024m"
-        
-    - name: Publish to Exchange
-      run: |
-        mvn clean deploy \
-          -Danypoint.username="${{ secrets.ANYPOINT_USERNAME }}" \
-          -Danypoint.password="${{ secrets.ANYPOINT_PASSWORD }}" \
-          -DskipMuleDeploy
-      env:
-        MAVEN_OPTS: "-Xmx1024m"
-        
-    - name: Deploy to CloudHub 2.0
-      run: |
-        mvn mule:deploy \
-          -Danypoint.username="${{ secrets.ANYPOINT_USERNAME }}" \
-          -Danypoint.password="${{ secrets.ANYPOINT_PASSWORD }}" \
-          -Danypoint.applicationName="hello-world-api-${{ github.run_number }}" \
-          -Danypoint.environment="Sandbox" \
-          -Danypoint.target="Cloudhub-US-East-2"
-      env:
-        MAVEN_OPTS: "-Xmx1024m"
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Cache Maven dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-m2
+
+      - name: Build (no Exchange calls)
+        run: mvn -B -U -e clean package -DskipTests
+        env:
+          MAVEN_OPTS: "-Xmx1024m"
+
+      # Publish to Exchange via plugin (no settings.xml)
+      - name: Publish to Anypoint Exchange
+        run: |
+          mvn -B -U -e org.mule.tools.maven:exchange-mule-maven-plugin:0.0.21:exchange-deploy \
+            -Danypoint.username="${{ secrets.ANYPOINT_USERNAME }}" \
+            -Danypoint.password="${{ secrets.ANYPOINT_PASSWORD }}" \
+            -Danypoint.orgId="${{ secrets.ANYPOINT_ORG_ID }}"
+        env:
+          MAVEN_OPTS: "-Xmx1024m"
+
+      - name: Deploy to CloudHub 2.0
+        run: |
+          mvn -B -U -e mule:deploy \
+            -Danypoint.username="${{ secrets.ANYPOINT_USERNAME }}" \
+            -Danypoint.password="${{ secrets.ANYPOINT_PASSWORD }}" \
+            -Danypoint.applicationName="hello-world-api-${{ github.run_number }}" \
+            -Danypoint.environment="${{ secrets.ANYPOINT_ENV }}" \
+            -Danypoint.target="${{ secrets.ANYPOINT_TARGET }}"
+        env:
+          MAVEN_OPTS: "-Xmx1024m"
