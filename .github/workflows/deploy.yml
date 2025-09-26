@@ -29,10 +29,11 @@ jobs:
     - name: Build with Maven
       run: mvn clean package
       
-    - name: Deploy to CloudHub
+    - name: Deploy to CloudHub 2.0
       run: |
         mvn clean deploy -DmuleDeploy \
           -Danypoint.username="${{ secrets.ANYPOINT_USERNAME }}" \
           -Danypoint.password="${{ secrets.ANYPOINT_PASSWORD }}" \
           -Danypoint.applicationName="hello-world-api-${{ github.run_number }}" \
-          -Danypoint.environment="Sandbox"
+          -Danypoint.environment="Sandbox" \
+          -Danypoint.target="Cloudhub-US-East-2"

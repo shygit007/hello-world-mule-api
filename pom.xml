@@ -30,17 +30,19 @@
     <version>${mule.maven.plugin.version}</version>
     <extensions>true</extensions>
     <configuration>
-        <cloudHubDeployment>
+        <cloudHub2Deployment>
             <uri>https://anypoint.mulesoft.com</uri>
+            <provider>MC</provider>
+            <environment>${anypoint.environment}</environment>
+            <target>${anypoint.target}</target>
             <muleVersion>${app.runtime}</muleVersion>
             <username>${anypoint.username}</username>
             <password>${anypoint.password}</password>
             <applicationName>${anypoint.applicationName}</applicationName>
-            <environment>${anypoint.environment}</environment>
-            <region>us-east-1</region>
-            <workers>1</workers>
-            <workerType>MICRO</workerType>
-        </cloudHubDeployment>
+            <replicas>1</replicas>
+            <vCores>0.1</vCores>
+            <deploymentTimeout>1000000</deploymentTimeout>
+        </cloudHub2Deployment>
     </configuration>
 </plugin>
 		</plugins>
