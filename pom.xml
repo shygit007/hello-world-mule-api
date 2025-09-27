@@ -6,7 +6,7 @@
 
 	<groupId>com.mycompany</groupId>
 	<artifactId>hello-world-api</artifactId>
-	<version>1.0.0-SNAPSHOT</version>
+	<version>1.0.0</version> <!-- release, not -SNAPSHOT -->
 	<packaging>mule-application</packaging>
 	<name>hello-world-api</name>
 	<properties>
@@ -14,7 +14,7 @@
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 		<app.runtime>4.6.0</app.runtime>
 		<mule.maven.plugin.version>4.1.0</mule.maven.plugin.version>
-		<anypoint.orgId>cts</anypoint.orgId>
+		<anypoint.orgId>961cedea-7d40-4e76-8cbb-dac76753c5c8</anypoint.orgId>
 	</properties>
 
 	<distributionManagement>

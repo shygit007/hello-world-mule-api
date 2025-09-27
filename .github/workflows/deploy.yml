@@ -29,4 +29,30 @@ jobs:
           mvn -B -U -e org.mule.tools.maven:exchange-mule-maven-plugin:0.0.21:exchange-deploy \
             -Danypoint.username="${{ secrets.ANYPOINT_USERNAME }}" \
             -Danypoint.password="${{ secrets.ANYPOINT_PASSWORD }}" \
-            -Danypoint.orgId="${{ secrets.ANYPOINT_ORG_ID }}"
+            -Danypoint.orgId="${{ secrets.ANYPOINT_ORG_ID }}" \
+            -DassetGroupId="com.mycompany" \
+            -DassetArtifactId="hello-world-api" \
+            -DassetVersion="1.0.0" \
+            -DassetPackaging="mule-application" \
+            -Dname="hello-world-api" \
+            -Ddescription="Hello World Mule app published by GitHub Actions"
+
+      # (Optional but handy) Verify the artifact exists in the org Maven repo
+      - name: Verify in Exchange (maven-metadata)
+        run: |
+          set -e
+          G=com.mycompany; A=hello-world-api; V=1.0.0
+          GPATH=${G//./\/}
+          REPO=$(mvn -q help:evaluate -Dexpression=project.distributionManagement.repository.url -DforceStdout)
+          curl -sf -u "${{ secrets.ANYPOINT_USERNAME }}:${{ secrets.ANYPOINT_PASSWORD }}" \
+            "$REPO/$GPATH/$A/$V/maven-metadata.xml" >/dev/null
+          echo "✅ Exchange lists $G:$A:$V"
+
+      # Print the exact UI URL to open (minor line derived from 1.0.0 -> 1.0)
+      - name: Print Exchange UI URL
+        run: |
+          ORG="${{ secrets.ANYPOINT_ORG_ID }}"
+          ASSET="hello-world-api"
+          MINOR="1.0"
+          echo "Open in Exchange:"
+          echo "https://anypoint.mulesoft.com/exchange/$ORG/$ASSET/minor/$MINOR/"
