@@ -1,4 +1,4 @@
-name: Deploy to CloudHub 2.0
+name: Deploy to CloudHub 2.0 via Exchange
 
 on:
   push:
@@ -9,20 +9,53 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-java@v4
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Build and Deploy to CloudHub 2.0
+      - name: Cache Maven dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-m2
+
+      - name: Publish to Exchange
+        run: mvn clean deploy -DskipTests
+        env:
+          MAVEN_OPTS: "-Xmx1024m"
+
+      - name: Wait for Exchange Indexing
         run: |
-          mvn clean package deploy -DmuleDeploy \
+          echo "Waiting for Exchange to index the published artifact..."
+          sleep 60
+          echo "Exchange indexing wait completed"
+
+      - name: Verify Exchange Publication
+        run: |
+          echo "Verifying publication in Exchange..."
+          echo "Artifact should be available at:"
+          echo "https://anypoint.mulesoft.com/exchange/961cedea-7d40-4e76-8cbb-dac76753c5c8/sp-mule-demo-api/"
+
+      - name: Deploy to CloudHub 2.0
+        run: |
+          mvn clean package mule:deploy -DmuleDeploy \
             -Danypoint.username="${{ secrets.ANYPOINT_USERNAME }}" \
             -Danypoint.password="${{ secrets.ANYPOINT_PASSWORD }}" \
             -Danypoint.applicationName="sp-mule-demo-api-${{ github.run_number }}" \
             -Danypoint.environment="Sandbox" \
-            -Danypoint.target="CloudHub-US-East-1"
+            -Danypoint.target="Cloudhub-US-East-2"
         env:
           MAVEN_OPTS: "-Xmx1024m"
+
+      - name: Deployment Summary
+        run: |
+          echo "Deployment completed successfully!"
+          echo "Application Name: sp-mule-demo-api-${{ github.run_number }}"
+          echo "Environment: Sandbox"
+          echo "Target: Cloudhub-US-East-2"

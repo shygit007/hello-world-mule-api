@@ -6,15 +6,17 @@
 
     <groupId>961cedea-7d40-4e76-8cbb-dac76753c5c8</groupId>
     <artifactId>sp-mule-demo-api</artifactId>
-    <version>1.0.1</version>
+    <version>1.0.8</version>
     <packaging>mule-application</packaging>
     <name>SP Mule Demo API</name>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-        <app.runtime>4.6.0</app.runtime>
-        <mule.maven.plugin.version>4.1.0</mule.maven.plugin.version>
+        <app.runtime>4.9.0</app.runtime>
+        <mule.maven.plugin.version>4.5.1</mule.maven.plugin.version>
+        <maven.compiler.source>17</maven.compiler.source>
+        <maven.compiler.target>17</maven.compiler.target>
     </properties>
 
     <distributionManagement>
@@ -39,12 +41,15 @@
                         <provider>MC</provider>
                         <environment>${anypoint.environment}</environment>
                         <target>${anypoint.target}</target>
-                        <muleVersion>${app.runtime}</muleVersion>
                         <username>${anypoint.username}</username>
                         <password>${anypoint.password}</password>
                         <applicationName>${anypoint.applicationName}</applicationName>
                         <replicas>1</replicas>
                         <vCores>0.1</vCores>
+                        <muleVersion>4.9.0</muleVersion>
+                        <javaVersion>17</javaVersion>
+                        <releaseChannel>EDGE</releaseChannel>
+                        <skipDeploymentVerification>false</skipDeploymentVerification>
                         <deploymentTimeout>1000000</deploymentTimeout>
                     </cloudhub2Deployment>
                 </configuration>
@@ -84,12 +89,9 @@
 
     <pluginRepositories>
         <pluginRepository>
-            <id>mulesoft-releases</id>
-            <name>MuleSoft Releases Repository</name>
-            <url>https://repository.mulesoft.org/releases/</url>
-            <snapshots>
-                <enabled>false</enabled>
-            </snapshots>
+            <id>mule-plugin</id>
+            <name>Mule Repository</name>
+            <url>https://repository.mulesoft.org/nexus/content/repositories/public/</url>
         </pluginRepository>
     </pluginRepositories>
 </project>
