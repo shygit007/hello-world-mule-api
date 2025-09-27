@@ -1,4 +1,4 @@
-name: Deploy to CloudHub 2.0 via Exchange
+name: Deploy to CloudHub 2.0
 
 on:
   push:
@@ -18,11 +18,11 @@ jobs:
 
       - name: Build and Deploy to CloudHub 2.0
         run: |
-          mvn clean deploy -DmuleDeploy \
+          mvn clean package deploy -DmuleDeploy \
             -Danypoint.username="${{ secrets.ANYPOINT_USERNAME }}" \
             -Danypoint.password="${{ secrets.ANYPOINT_PASSWORD }}" \
             -Danypoint.applicationName="sp-mule-demo-api-${{ github.run_number }}" \
             -Danypoint.environment="Sandbox" \
-            -Danypoint.target="Cloudhub-US-East-2"
+            -Danypoint.target="CloudHub-US-East-1"
         env:
           MAVEN_OPTS: "-Xmx1024m"
