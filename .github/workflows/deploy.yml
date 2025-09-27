@@ -65,7 +65,7 @@ jobs:
           mvn clean package mule:deploy -DmuleDeploy \
             -Danypoint.username="shyanypoint092625" \
             -Danypoint.password="Dingari007#" \
-            -Danypoint.applicationName="sp-mule-demo-api-${{ github.run_number }}" \
+            -Danypoint.applicationName="sp-mule-demo-api-local" \
             -Danypoint.environment="Sandbox" \
             -Danypoint.target="Cloudhub-US-East-2"
         env:
@@ -74,6 +74,6 @@ jobs:
       - name: Deployment Summary
         run: |
           echo "Deployment completed successfully!"
-          echo "Application Name: sp-mule-demo-api-${{ github.run_number }}"
+          echo "Application Name: sp-mule-demo-api-local"
           echo "Environment: Sandbox"
           echo "Target: Cloudhub-US-East-2"
