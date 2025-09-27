@@ -27,11 +27,22 @@ jobs:
             -Danypoint.orgId="961cedea-7d40-4e76-8cbb-dac76753c5c8" \
             -DbusinessGroupId="cts" \
             -DassetGroupId="cts" \
-            -DassetArtifactId="hello-world-api" \
+            -DassetArtifactId="sp-mule-demo-api" \
             -DassetVersion="1.0.0" \
             -DassetPackaging="mule-application" \
-            -Dname="hello-world-api" \
-            -Ddescription="Hello World API published to cts business group"
+            -Dname="SP Mule Demo API" \
+            -Ddescription="Shyam Prasad MuleSoft Demo API for CI/CD pipeline"
 
-      - name: Verify publication success
-        run: echo "Asset should now be visible in Exchange under cts business group"
+      - name: Check Exchange API directly
+        run: |
+          echo "Checking if asset exists via Exchange API..."
+          curl -s -u "${{ secrets.ANYPOINT_USERNAME }}:${{ secrets.ANYPOINT_PASSWORD }}" \
+            "https://anypoint.mulesoft.com/exchange/api/v2/organizations/961cedea-7d40-4e76-8cbb-dac76753c5c8/assets?search=sp-mule-demo-api" \
+            | jq '.' || echo "Asset not found in Exchange API"
+
+      - name: List all assets in cts business group
+        run: |
+          echo "Listing all assets in organization..."
+          curl -s -u "${{ secrets.ANYPOINT_USERNAME }}:${{ secrets.ANYPOINT_PASSWORD }}" \
+            "https://anypoint.mulesoft.com/exchange/api/v2/organizations/961cedea-7d40-4e76-8cbb-dac76753c5c8/assets?limit=50" \
+            | jq '.[] | {groupId, artifactId, version, name}' || echo "Failed to list assets"
