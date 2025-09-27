@@ -4,9 +4,9 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>cts</groupId>
+    <groupId>961cedea-7d40-4e76-8cbb-dac76753c5c8</groupId>
     <artifactId>sp-mule-demo-api</artifactId>
-    <version>1.0.0</version>
+    <version>1.0.1</version>
     <packaging>mule-application</packaging>
     <name>SP Mule Demo API</name>
 
