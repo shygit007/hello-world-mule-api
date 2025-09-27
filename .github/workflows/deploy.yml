@@ -1,4 +1,4 @@
-name: Publish to Exchange (cts)
+name: Deploy to CloudHub 2.0 via Exchange
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  publish:
+  deploy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -16,39 +16,13 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Build package
-        run: mvn clean package -DskipTests
-
-      - name: Publish to Anypoint Exchange (cts business group)
+      - name: Build and Deploy to CloudHub 2.0
         run: |
-          mvn org.mule.tools.maven:exchange-mule-maven-plugin:0.0.21:exchange-deploy \
+          mvn clean deploy -DmuleDeploy \
             -Danypoint.username="${{ secrets.ANYPOINT_USERNAME }}" \
             -Danypoint.password="${{ secrets.ANYPOINT_PASSWORD }}" \
-            -Danypoint.orgId="961cedea-7d40-4e76-8cbb-dac76753c5c8" \
-            -DbusinessGroupId="cts" \
-            -DassetGroupId="cts" \
-            -DassetArtifactId="sp-mule-demo-api" \
-            -DassetVersion="1.0.0" \
-            -DassetPackaging="mule-application" \
-            -Dname="SP Mule Demo API" \
-            -Ddescription="Shyam Prasad MuleSoft Demo API for CI/CD pipeline"
-
-      - name: Get organization info
-        run: |
-          echo "Getting organization details..."
-          curl -s -u "${{ secrets.ANYPOINT_USERNAME }}:${{ secrets.ANYPOINT_PASSWORD }}" \
-            "https://anypoint.mulesoft.com/accounts/api/me" | jq '.user.organization'
-
-      - name: Search for published asset
-        run: |
-          echo "Searching for our published asset..."
-          curl -s -u "${{ secrets.ANYPOINT_USERNAME }}:${{ secrets.ANYPOINT_PASSWORD }}" \
-            "https://anypoint.mulesoft.com/exchange/api/v1/assets?search=sp-mule-demo-api" \
-            | jq '.'
-
-      - name: List user accessible assets
-        run: |
-          echo "Listing all accessible assets..."
-          curl -s -u "${{ secrets.ANYPOINT_USERNAME }}:${{ secrets.ANYPOINT_PASSWORD }}" \
-            "https://anypoint.mulesoft.com/exchange/api/v1/assets?limit=20" \
-            | jq '.[] | select(.type == "app") | {groupId, artifactId, version, name}'
+            -Danypoint.applicationName="sp-mule-demo-api-${{ github.run_number }}" \
+            -Danypoint.environment="Sandbox" \
+            -Danypoint.target="Cloudhub-US-East-2"
+        env:
+          MAVEN_OPTS: "-Xmx1024m"
