@@ -36,19 +36,15 @@ jobs:
             <servers>
               <server>
                 <id>anypoint-exchange-v3</id>
-                <username>\${{ secrets.ANYPOINT_USERNAME }}</username>
-                <password>\${{ secrets.ANYPOINT_PASSWORD }}</password>
+                <username>shyanypoint092625</username>
+                <password>Dingari007#</password>
               </server>
             </servers>
           </settings>
           EOF
 
       - name: Publish to Exchange
-        run: |
-          echo "Publishing to Exchange..."
-          mvn clean deploy -DskipTests -X \
-            -Danypoint.username="${{ secrets.ANYPOINT_USERNAME }}" \
-            -Danypoint.password="${{ secrets.ANYPOINT_PASSWORD }}"
+        run: mvn clean deploy -DskipTests
         env:
           MAVEN_OPTS: "-Xmx1024m"
 
@@ -67,8 +63,8 @@ jobs:
       - name: Deploy to CloudHub 2.0
         run: |
           mvn clean package mule:deploy -DmuleDeploy \
-            -Danypoint.username="${{ secrets.ANYPOINT_USERNAME }}" \
-            -Danypoint.password="${{ secrets.ANYPOINT_PASSWORD }}" \
+            -Danypoint.username="shyanypoint092625" \
+            -Danypoint.password="Dingari007#" \
             -Danypoint.applicationName="sp-mule-demo-api-${{ github.run_number }}" \
             -Danypoint.environment="Sandbox" \
             -Danypoint.target="Cloudhub-US-East-2"
