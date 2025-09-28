@@ -1,79 +1,112 @@
-name: Deploy to CloudHub 2.0 via Exchange
+name: Build → Verify Exchange → Deploy (CloudHub 2.0)
 
 on:
+  workflow_dispatch:
   push:
     branches: [ master ]
-  workflow_dispatch:
 
 jobs:
-  deploy:
+  build-verify-deploy:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up JDK 17
+      - name: Set up JDK 17 (Temurin)
         uses: actions/setup-java@v4
         with:
+          distribution: temurin
           java-version: '17'
-          distribution: 'temurin'
+          cache: maven
 
-      - name: Cache Maven dependencies
-        uses: actions/cache@v3
-        with:
-          path: ~/.m2
-          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
-          restore-keys: ${{ runner.os }}-m2
-
-      - name: Configure Maven Settings
+      - name: Ensure jq is available
         run: |
-          mkdir -p ~/.m2
-          cat > ~/.m2/settings.xml << EOF
-          <settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
-                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-                    xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0 
-                                        http://maven.apache.org/xsd/settings-1.0.0.xsd">
-            <servers>
-              <server>
-                <id>anypoint-exchange-v3</id>
-                <username>shyanypoint092625</username>
-                <password>Dingari007#</password>
-              </server>
-            </servers>
-          </settings>
-          EOF
+          sudo apt-get update -y
+          sudo apt-get install -y jq
 
-      - name: Publish to Exchange
-        run: mvn clean deploy -DskipTests
+      # 1) PUBLISH to Exchange (your exact command)
+      - name: Publish to Exchange (skip tests)
+        run: |
+          set -e
+          mvn -B -ntp clean deploy -DskipTests
+
+      # 2) Read project coordinates (GAV)
+      - name: Read project coordinates (GAV)
+        id: gav
+        run: |
+          set -e
+          echo "groupId=$(mvn -q -DforceStdout help:evaluate -Dexpression=project.groupId)" >> $GITHUB_OUTPUT
+          echo "artifactId=$(mvn -q -DforceStdout help:evaluate -Dexpression=project.artifactId)" >> $GITHUB_OUTPUT
+          echo "version=$(mvn -q -DforceStdout help:evaluate -Dexpression=project.version)" >> $GITHUB_OUTPUT
+
+      # 3) Login to Anypoint & get Org Id
+      - name: Get Anypoint access token & org id
+        id: anypoint
         env:
-          MAVEN_OPTS: "-Xmx1024m"
-
-      - name: Wait for Exchange Indexing
+          ANYPOINT_USERNAME: shyanypoint092625
+          ANYPOINT_PASSWORD: Dingari007#
         run: |
-          echo "Waiting for Exchange to index the published artifact..."
-          sleep 60
-          echo "Exchange indexing wait completed"
+          set -e
+          TOKEN=$(curl -sS -X POST "https://anypoint.mulesoft.com/accounts/login" \
+            -H "Content-Type: application/json" \
+            -d "{\"username\":\"$ANYPOINT_USERNAME\",\"password\":\"$ANYPOINT_PASSWORD\"}" | jq -r '.access_token')
+          if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
+            echo "Failed to obtain Anypoint access token"; exit 1
+          fi
+          ORG_ID=$(curl -sS "https://anypoint.mulesoft.com/accounts/api/me" \
+            -H "Authorization: Bearer $TOKEN" | jq -r '.user.organization.id // .user.memberOfOrganizations[0].id')
+          if [ -z "$ORG_ID" ] || [ "$ORG_ID" = "null" ]; then
+            echo "Failed to determine Organization ID"; exit 1
+          fi
+          echo "token=$TOKEN" >> $GITHUB_OUTPUT
+          echo "orgId=$ORG_ID" >> $GITHUB_OUTPUT
 
-      - name: Verify Exchange Publication
+      # 4) Mandatory cool-down before verify (per your request)
+      - name: Wait 60s for Exchange indexing
+        run: sleep 60
+
+      # 5) VERIFY the artifact exists in Exchange (gated)
+      - name: Verify artifact exists in Exchange
+        env:
+          TOKEN: ${{ steps.anypoint.outputs.token }}
+          ORG_ID: ${{ steps.anypoint.outputs.orgId }}
+          GROUP_ID: ${{ steps.gav.outputs.groupId }}
+          ARTIFACT_ID: ${{ steps.gav.outputs.artifactId }}
+          VERSION: ${{ steps.gav.outputs.version }}
         run: |
-          echo "Verifying publication in Exchange..."
-          echo "Artifact should be available at:"
-          echo "https://anypoint.mulesoft.com/exchange/961cedea-7d40-4e76-8cbb-dac76753c5c8/sp-mule-demo-api/"
+          set -e
+          echo "Verifying $GROUP_ID:$ARTIFACT_ID:$VERSION in Exchange (org: $ORG_ID)"
+          # up to ~5 min total (20 * 15s) AFTER the initial 60s wait
+          for i in $(seq 1 20); do
+            RESP=$(curl -sS -H "Authorization: Bearer $TOKEN" \
+              "https://anypoint.mulesoft.com/exchange/api/v2/assets?search=${ARTIFACT_ID}&organizationId=${ORG_ID}")
 
+            FOUND=$(echo "$RESP" | jq --arg gid "$GROUP_ID" --arg aid "$ARTIFACT_ID" --arg ver "$VERSION" \
+              '[
+                 (.assets // .)[]? 
+                 | select(.groupId==$gid and .assetId==$aid)
+                 | ( .versions[]?.version? // .latestVersion? )
+               ] | any(.==$ver)')
+            if [ "$FOUND" = "true" ]; then
+              echo "✅ Exchange contains $GROUP_ID:$ARTIFACT_ID:$VERSION"
+              exit 0
+            fi
+            echo "Waiting for Exchange to index the artifact... ($i/20)"
+            sleep 15
+          done
+          echo "❌ Artifact not visible in Exchange after waiting. Failing the job."
+          echo "Last response:"
+          echo "$RESP"
+          exit 1
+
+      # 6) DEPLOY to CloudHub 2.0 (your exact command)
       - name: Deploy to CloudHub 2.0
         run: |
-          mvn clean package mule:deploy -DmuleDeploy \
-            -Danypoint.username="shyanypoint092625" \
-            -Danypoint.password="Dingari007#" \
-            -Danypoint.applicationName="sp-mule-demo-api-local" \
-            -Danypoint.environment="Sandbox" \
-            -Danypoint.target="Cloudhub-US-East-2"
-        env:
-          MAVEN_OPTS: "-Xmx1024m"
-
-      - name: Deployment Summary
-        run: |
-          echo "Deployment completed successfully!"
-          echo "Application Name: sp-mule-demo-api-local"
-          echo "Environment: Sandbox"
-          echo "Target: Cloudhub-US-East-2"
+          set -e
+          mvn -B -ntp clean package mule:deploy -DmuleDeploy \
+            -Danypoint.username='shyanypoint092625' \
+            -Danypoint.password='Dingari007#' \
+            -Danypoint.applicationName='sp-mule-demo-api-local' \
+            -Danypoint.environment='Sandbox' \
+            -Danypoint.target='Cloudhub-US-East-2'

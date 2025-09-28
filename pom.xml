@@ -6,7 +6,7 @@
 
     <groupId>961cedea-7d40-4e76-8cbb-dac76753c5c8</groupId>
     <artifactId>sp-mule-demo-api</artifactId>
-    <version>1.0.124</version>
+    <version>1.20.8</version>
     <packaging>mule-application</packaging>
     <name>SP Mule Demo API</name>
 

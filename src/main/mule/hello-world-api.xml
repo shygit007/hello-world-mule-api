@@ -9,7 +9,7 @@ http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/
       http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd">
       
 <http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config">
-    <http:listener-connection host="0.0.0.0" port="8080" />
+    <http:listener-connection host="0.0.0.0" port="8081" />
 </http:listener-config>
   
   <flow name="hello-world-flow" doc:id="3cac9ebf-3ee9-402b-a391-ff5721f1bf25">
