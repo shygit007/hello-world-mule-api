@@ -6,14 +6,17 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write  # allow pushing the bumped pom.xml back to the repo
+  contents: write  # needed to push the bumped pom.xml
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # ensure full history so we see the previous bump
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -28,35 +31,41 @@ jobs:
           key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
           restore-keys: ${{ runner.os }}-m2
 
-      # NEW: bump patch version (e.g., 1.6.8 -> 1.6.9), commit & push
+      # === Bump patch version (e.g., 1.6.9 -> 1.6.10), commit & push ===
       - name: Bump patch version and commit
         id: bump
         run: |
           set -e
+          BRANCH="${GITHUB_REF_NAME:-master}"
+          git checkout "$BRANCH" || true
+          git pull --rebase origin "$BRANCH"
+
           CURRENT=$(mvn -q -DforceStdout help:evaluate -Dexpression=project.version)
           BASE=${CURRENT%-SNAPSHOT}
           IFS='.' read -r MAJOR MINOR PATCH <<< "$BASE"
           NEW="$MAJOR.$MINOR.$((PATCH+1))"
           echo "Bumping version: $CURRENT -> $NEW"
 
-          mvn -B -ntp versions:set -DnewVersion="$NEW" -DgenerateBackupPoms=false
+          mvn -B -ntp versions:set \
+            -DnewVersion="$NEW" \
+            -DgenerateBackupPoms=false \
+            -DprocessAllModules=true
 
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add pom.xml
           git commit -m "ci: bump version to $NEW [skip ci]"
-          git push
+          git push origin "$BRANCH"
 
           echo "new_version=$NEW" >> $GITHUB_OUTPUT
 
       - name: Configure Maven Settings
         run: |
           mkdir -p ~/.m2
-          cat > ~/.m2/settings.xml << EOF
+          cat > ~/.m2/settings.xml << 'EOF'
           <settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
                     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-                    xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0 
-                                        http://maven.apache.org/xsd/settings-1.0.0.xsd">
+                    xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0 http://maven.apache.org/xsd/settings-1.0.0.xsd">
             <servers>
               <server>
                 <id>anypoint-exchange-v3</id>
@@ -67,26 +76,17 @@ jobs:
           </settings>
           EOF
 
-      - name: Publish to Exchange
-        run: mvn clean deploy -DskipTests
+      - name: Publish to Exchange (skip tests)
+        run: mvn -B -ntp clean deploy -DskipTests
         env:
           MAVEN_OPTS: "-Xmx1024m"
 
-      - name: Wait for Exchange Indexing
-        run: |
-          echo "Waiting for Exchange to index the published artifact..."
-          sleep 60
-          echo "Exchange indexing wait completed"
-
-      - name: Verify Exchange Publication
-        run: |
-          echo "Verifying publication in Exchange..."
-          echo "Artifact should be available at:"
-          echo "https://anypoint.mulesoft.com/exchange/961cedea-7d40-4e76-8cbb-dac76753c5c8/sp-mule-demo-api/"
+      - name: Wait 60 seconds before deploy
+        run: sleep 60
 
       - name: Deploy to CloudHub 2.0
         run: |
-          mvn clean package mule:deploy -DmuleDeploy \
+          mvn -B -ntp clean package mule:deploy -DmuleDeploy \
             -Danypoint.username="shyanypoint092625" \
             -Danypoint.password="Dingari007#" \
             -Danypoint.applicationName="sp-mule-demo-api-local" \
@@ -97,8 +97,8 @@ jobs:
 
       - name: Deployment Summary
         run: |
-          echo "Deployment completed successfully!"
+          echo "Deployment completed."
           echo "New Version: ${{ steps.bump.outputs.new_version }}"
-          echo "Application Name: sp-mule-demo-api-local"
+          echo "Application: sp-mule-demo-api-local"
           echo "Environment: Sandbox"
           echo "Target: Cloudhub-US-East-2"
